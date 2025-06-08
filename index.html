@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>InstaPrint - File Upload & Print</title>
+    <!-- Dependencies -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.15.349/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.0/build/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.5.0/axios.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* Base Styles */
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-color: #f9fafb;
+            /* equivalent to bg-gray-50 */
+            font-family: sans-serif;
+            margin: 0;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+
+        /* Utility Classes */
+        .mx-auto {
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .flex {
+            display: flex;
+        }
+
+        .flex-col {
+            flex-direction: column;
+        }
+
+        .flex-grow {
+            flex-grow: 1;
+        }
+
+        /* Navbar */
+        nav {
+            background-color: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid #e5e7eb;
+            padding: 20px 32px;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 50;
+        }
+
+        nav .brand {
+            font-size: 24px;
+            font-weight: bold;
+            background: linear-gradient(to right, #9f7aea, #ed64a6);
+            -webkit-background-clip: text;
+            background-clip: text;
+            /* Standard property for compatibility */
+            -webkit-text-fill-color: transparent;
+        }
+
+        nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+        }
+
+        nav ul li {
+            margin-left: 20px;
+            position: relative;
+        }
+
+        nav ul li a {
+            color: #4a5568;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        nav ul li a:hover {
+            color: #9f7aea;
+        }
+
+        nav ul li a::after {
+            content: "";
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background-color: #9f7aea;
+            transition: width 0.3s;
+        }
+
+        nav ul li a:hover::after {
+            width: 100%;
+        }
+
+        /* Main Content */
+        main {
+            flex-grow: 1;
+            padding-top: 80px;
+            /* To offset the fixed navbar */
+        }
+
+        /* Section Box */
+        .section-box {
+            max-width: 36rem;
+            /* similar to max-w-xl */
+            margin: 0 auto;
+            background-color: #fff;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            border-radius: 1.5rem;
+            padding: 2.5rem;
+        }
+
+        /* Typography */
+        .text-2xl {
+            font-size: 1.5rem;
+        }
+
+        .text-lg {
+            font-size: 1.125rem;
+        }
+
+        .text-sm {
+            font-size: 0.875rem;
+        }
+
+        .font-bold {
+            font-weight: bold;
+        }
+
+        .font-medium {
+            font-weight: 500;
+        }
+
+        .font-semibold {
+            font-weight: 600;
+        }
+
+        .text-gray-700 {
+            color: #4a5568;
+        }
+
+        .text-gray-600 {
+            color: #718096;
+        }
+
+        .text-purple-600 {
+            color: #9f7aea;
+        }
+
+        /* Spacing */
+        .mb-8 {
+            margin-bottom: 2rem;
+        }
+
+        .mb-4 {
+            margin-bottom: 1rem;
+        }
+
+        .space-y-8>*+* {
+            margin-top: 2rem;
+        }
+
+        .space-y-6>*+* {
+            margin-top: 1.5rem;
+        }
+
+        /* Upload Label */
+        label.upload-label {
+            display: block;
+            border: 2px dashed #d6bcfa;
+            border-radius: 1.5rem;
+            padding: 2.5rem;
+            text-align: center;
+            background-color: #faf5ff;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        label.upload-label:hover {
+            background-color: #f3e8ff;
+        }
+
+        /* Gradient Button */
+        .gradient-button {
+            width: 100%;
+            background: linear-gradient(to right, #9f7aea, #ed64a6);
+            color: #fff;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 9999px;
+            cursor: pointer;
+            transition: background 0.3s;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .gradient-button:hover {
+            background: linear-gradient(to right, #805ad5, #d53f8c);
+        }
+
+        /* Input & Select Styles */
+        input[type="number"],
+        select {
+            width: 100%;
+            border: 1px solid #e2e8f0;
+            border-radius: 9999px;
+            padding: 0.75rem;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        input[type="number"]:focus,
+        select:focus {
+            border-color: #9f7aea;
+            box-shadow: 0 0 0 2px rgba(159, 122, 234, 0.3);
+            outline: none;
+        }
+
+        /* UPI Grid */
+        .upi-grid {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .upi-app {
+            cursor: pointer;
+            padding: 1rem;
+            border-radius: 1rem;
+            background-color: #fff;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: box-shadow 0.3s;
+            text-align: center;
+        }
+
+        .upi-app:hover {
+            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .upi-app img {
+            height: 3rem;
+            margin: 0 auto;
+        }
+
+        .upi-app p {
+            margin-top: 0.5rem;
+            font-weight: 600;
+            color: #4a5568;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Main Content -->
+    <main class="container">
+        <!-- Upload Section -->
+        <div id="uploadSection" class="section-box">
+            <h2 class="text-2xl font-bold text-center mb-8">Upload Your Document</h2>
+            <form id="uploadForm" action="upload.php" method="post" enctype="multipart/form-data" class="space-y-8">
+                <label class="upload-label">
+                    <i class="fa-solid fa-upload" style="color: #9f7aea; font-size: 3rem; margin-bottom: 1rem;"></i>
+                    <p class="text-gray-700 font-semibold">
+                        Drag and drop a file or click to upload
+                    </p>
+                    <!-- now accept anything; you can restrict to specific types if you like -->
+                    <input type="file" id="fileInput" name="file" class="hidden" accept="*/*" />
+                </label>
+
+                <p id="fileName" class="text-sm text-gray-600 text-center">
+                    No file chosen
+                </p>
+                <p id="pageCount" class="text-sm text-purple-600 text-center"></p>
+
+                <!-- we'll always post this, even for non-PDFs -->
+                <input type="hidden" name="pageCount" id="pageCountInput" value="1" />
+
+                <button type="submit" class="gradient-button">
+                    Upload Document
+                </button>
+            </form>
+        </div>
+
+        <!-- Print Settings Section -->
+        <div id="printSection" class="section-box hidden">
+            <h2 class="text-2xl font-bold text-center mb-8">Print Settings</h2>
+            <form id="printForm" class="space-y-6">
+                <div>
+                    <label class="block text-gray-700 font-medium mb-2">Number of Copies</label>
+                    <input type="number" min="1" id="copies" value="1">
+                </div>
+                <div>
+                    <label class="block text-gray-700 font-medium mb-2">Paper Size</label>
+                    <select id="paperSize">
+                        <option value="A4">A4</option>
+                        <option value="A3">A3</option>
+                        <option value="Letter">Letter</option>
+                        <option value="Legal">Legal</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-gray-700 font-medium mb-2">Print Type</label>
+                    <select id="printType">
+                        <option value="single">Single-Sided</option>
+                        <option value="double">Double-Sided</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-gray-700 font-medium mb-2">Color Mode</label>
+                    <select id="colorPrint">
+                        <option value="Black & White">Black & White</option>
+                        <option value="Color">Color</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-gray-700 font-medium mb-2">Payment Method</label>
+                    <select id="paymentMethod">
+                        <option value="UPI">UPI</option>
+                        <option value="Cash">Cash</option>
+                    </select>
+                </div>
+                <button type="submit" class="gradient-button">Calculate &amp; Proceed</button>
+            </form>
+        </div>
+
+        <!-- Payment Section -->
+        <div id="paymentSection" class="section-box text-center hidden">
+            <h2 class="text-2xl font-bold mb-6">Payment</h2>
+            <p id="paymentAmount" class="text-gray-700 mb-6 text-lg"></p>
+            <div id="upiSection" class="hidden">
+                <h3 class="text-lg font-bold mb-4">Select UPI App</h3>
+                <div class="upi-grid">
+                    <div id="phonePe" class="upi-app">
+                        <img src="data:image/jpeg;base64,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
+            " alt="PhonePe">
+                        <p>PhonePe</p>
+                    </div>
+                    <div id="googlePay" class="upi-app">
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg
+            " alt="Google Pay">
+                        <p>Google Pay</p>
+                    </div>
+                    <div id="paytm" class="upi-app">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/4/42/Paytm_logo.png" alt="Paytm">
+                        <p>Paytm</p>
+                    </div>
+                </div>
+                <img id="qrCode" src="" alt="QR Code" class="hidden"
+                    style="width: 14rem; height: 14rem; margin-bottom: 1.5rem;">
+                <p id="qrInstruction" class="text-sm text-gray-500 mb-4 hidden"></p>
+                <button id="confirmPayment" class="gradient-button">Confirm Payment</button>
+            </div>
+            <div id="cashSection" class="hidden">
+                <p class="text-gray-700 text-lg">Please pay in cash to proceed.</p>
+            </div>
+            <button id="cancelButton" class="gradient-button"
+                style="background-color: #e2e8f0; color: #2d3748; margin-top: 1.5rem;">
+                Cancel and Start Over
+            </button>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <p>© <span id="currentYear"></span> InstaPrint. All Rights Reserved.</p>
+    </footer>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+<script>
+    let state = {
+        file: null,
+        pageCount: 1,
+        copies: 1,
+        paperSize: 'A4',
+        printType: 'single',
+        colorPrint: 'Black & White',
+        paymentMethod: 'UPI',
+        upiApp: 'PhonePe',
+        paymentAmount: 0
+    };
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.15.349/pdf.worker.min.js';
+
+    const uploadSection = document.getElementById('uploadSection');
+    const printSection = document.getElementById('printSection');
+    const paymentSection = document.getElementById('paymentSection');
+    const fileInput = document.getElementById('fileInput');
+    const fileNameDisplay = document.getElementById('fileName');
+    const pageCountDisplay = document.getElementById('pageCount');
+    const paymentAmount = document.getElementById('paymentAmount');
+    const upiSection = document.getElementById('upiSection');
+    const cashSection = document.getElementById('cashSection');
+    const qrCode = document.getElementById('qrCode');
+    const qrInstruction = document.getElementById('qrInstruction');
+    const confirmPayment = document.getElementById('confirmPayment');
+    const cancelButton = document.getElementById('cancelButton');
+
+    document.getElementById('currentYear').textContent = new Date().getFullYear();
+    fileInput.addEventListener('change', handleFileChange);
+    document.getElementById('uploadForm').addEventListener('submit', handleUpload);
+    document.getElementById('printForm').addEventListener('submit', handlePrintSubmit);
+
+    const upiApps = document.querySelectorAll('.upi-app');
+
+    // Fix: setUpiApp now launches Razorpay immediately
+    function setUpiApp(appName) {
+      state.upiApp = appName;
+      upiApps.forEach(el => el.classList.toggle('selected', el.dataset.app === appName));
+      // launch razorpay
+      handleRazorpayPayment();
+    }
+   document.getElementById('phonePe').addEventListener('click', () => setUpiApp('PhonePe'));
+  document.getElementById('googlePay').addEventListener('click', () => setUpiApp('GooglePay'));
+  document.getElementById('paytm').addEventListener('click',   () => setUpiApp('Paytm'));
+
+    confirmPayment.addEventListener('click', handlePaymentVerification);
+    cancelButton.addEventListener('click', resetForm);
+
+    function handleFileChange(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        state.file = file;
+        const name = file.name;
+        fileNameDisplay.textContent = name;
+
+        const ext = name.split('.').pop().toLowerCase();
+        if (ext === 'pdf') {
+            pageCountDisplay.textContent = 'Processing…';
+            const reader = new FileReader();
+            reader.onload = () => {
+                const arr = new Uint8Array(reader.result);
+                pdfjsLib.getDocument(arr).promise
+                    .then(pdf => {
+                        state.pageCount = pdf.numPages;
+                        pageCountDisplay.textContent = `Pages: ${pdf.numPages}`;
+                        document.getElementById('pageCountInput').value = pdf.numPages;
+                    })
+                    .catch(() => {
+                        state.pageCount = 1;
+                        pageCountDisplay.textContent = '';
+                        document.getElementById('pageCountInput').value = 1;
+                    });
+            };
+            reader.readAsArrayBuffer(file);
+        } else {
+            state.pageCount = 1;
+            pageCountDisplay.textContent = '';
+            document.getElementById('pageCountInput').value = 1;
+        }
+    }
+
+    async function handleUpload(e) {
+        e.preventDefault();
+
+        if (!state.file) return alert('Please select a file');
+        if (state.pageCount < 1) return alert('Could not determine page count');
+
+        const formData = new FormData();
+        formData.append('file', state.file);
+        formData.append('pageCount', state.pageCount);
+
+        try {
+            const response = await axios.post('upload.php', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
+            const data = response.data;
+            if (data.status === 'success') {
+                state.serverFilename = data.filename;
+                uploadSection.classList.add('hidden');
+                printSection.classList.remove('hidden');
+            } else {
+                alert('Upload failed: ' + (data.message || 'Unknown error'));
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Error while uploading. Check console for details.');
+        }
+    }
+
+    function handlePrintSubmit(e) {
+    e.preventDefault();
+
+    state.copies = parseInt(document.getElementById('copies').value, 10);
+    state.paperSize = document.getElementById('paperSize').value;
+    state.printType = document.getElementById('printType').value;
+    state.colorPrint = document.getElementById('colorPrint').value;
+    state.paymentMethod = document.getElementById('paymentMethod').value;
+
+    const baseRate = state.colorPrint === 'Color' ? 3 : 1.5;
+    const printablePages = state.printType === 'double'
+        ? Math.ceil(state.pageCount / 2)
+        : state.pageCount;
+
+    state.paymentAmount = printablePages * state.copies * baseRate;
+    paymentAmount.textContent = `Amount to be Paid: ₹${state.paymentAmount.toFixed(2)}`;
+
+    // Save preferences to backend
+    axios.post('http://localhost:5000/api/print-settings', {
+        printType:    state.printType,
+        colorPrint:   state.colorPrint,
+        paymentMethod: state.paymentMethod,
+        paymentAmount: state.paymentAmount,
+        copies:       state.copies,
+        paperSize:    state.paperSize,
+        serverFilename: state.serverFilename
+    })
+    .then(res => {
+        console.log('Print settings saved:', res.data);
+    })
+    .catch(err => {
+        console.warn('Failed to save print settings:', err);
+    });
+
+    printSection.classList.add('hidden');
+    paymentSection.classList.remove('hidden');
+
+    if (state.paymentMethod === 'UPI') {
+        upiSection.classList.remove('hidden');
+        cashSection.classList.add('hidden');
+        generateQRCode(state.paymentAmount);
+    } else {
+        upiSection.classList.add('hidden');
+        cashSection.classList.remove('hidden');
+    }
+}
+
+
+    function handleRazorpayPayment() {
+      if (!window.Razorpay) {
+        const script = document.createElement('script');
+        script.src = "https://checkout.razorpay.com/v1/checkout.js";
+        script.onload = openRazorpay;
+        document.body.appendChild(script);
+      } else {
+        openRazorpay();
+      }
+    }
+
+    
+    function openRazorpay() {
+  const key    = "rzp_test_wf9zZFyL5TXNXw"; // Replace with live key in production
+  const amount = state.paymentAmount * 100;
+
+  const options = {
+    key,
+    amount,
+    currency: "INR",
+    name: "InstaPrint",
+    description: "Document Print Payment",
+    handler(response) {
+      // ✅ Store and forward payment status
+      const paymentId = response.razorpay_payment_id;
+      state.paymentVerified = true;  // Optional internal flag
+      handlePaymentVerification(paymentId);  // Calls your backend status API
+    },
+    prefill: {
+      name: "Customer Name",
+      email: "customer@example.com",
+      contact: "9999999999"
+    },
+    theme: { color: "#9f7aea" }
+  };
+
+  new window.Razorpay(options).open();
+}
+
+
+   async function handlePaymentVerification(paymentId) {
+  try {
+    const status = 'success';
+    state.paymentStatus = status;
+
+    const statusRes = await axios.post('http://localhost:5000/api/payment/status', {
+      amount: state.paymentAmount,
+      status,
+      razorpayPaymentId: paymentId
+    });
+
+    if (statusRes.data.status === 'success') {
+      console.log("✅ Payment status updated on backend:", statusRes.data.message);
+      alert(`Payment successful!\nServer says: ${statusRes.data.message}`);
+      resetForm();
+    } else {
+      alert('Payment status update failed on server.');
+    }
+  } catch (err) {
+    console.error('Error in payment-verification flow:', err);
+
+    try {
+      await axios.post('http://localhost:5000/api/payment/status', {
+        amount: state.paymentAmount,
+        status: 'failure',
+        razorpayPaymentId: paymentId
+      });
+    } catch (_) { }
+
+    alert('An error occurred. Payment status sent as failure.');
+  }
+}
+
+    function resetForm() {
+        state = {
+            file: null,
+            pageCount: 1,
+            copies: 1,
+            paperSize: 'A4',
+            printType: 'single',
+            colorPrint: 'Black & White',
+            paymentMethod: 'UPI',
+            upiApp: 'PhonePe',
+            paymentAmount: 0
+        };
+
+        fileInput.value = '';
+        fileNameDisplay.textContent = 'No file chosen';
+        pageCountDisplay.textContent = '';
+        paymentAmount.textContent = '';
+        qrCode.src = '';
+        qrCode.classList.add('hidden');
+        qrInstruction.textContent = '';
+        qrInstruction.classList.add('hidden');
+
+        uploadSection.classList.remove('hidden');
+        printSection.classList.add('hidden');
+        paymentSection.classList.add('hidden');
+    }
+</script>
+
+</body>
+
+</html>
